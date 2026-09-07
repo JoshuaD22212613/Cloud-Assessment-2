@@ -4,35 +4,61 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
-    "post": {
-      "model": "Post",
+    "activity": {
+      "model": "Activity",
       "namespace": "public"
     },
-    "user": {
-      "model": "User",
+    "phoneme": {
+      "model": "Phoneme",
+      "namespace": "public"
+    },
+    "word": {
+      "model": "Word",
+      "namespace": "public"
+    },
+    "wordList": {
+      "model": "WordList",
       "namespace": "public"
     }
   },
   "domain": {
     "namespaces": {
       "public": {
+        "enum": {
+          "ActivityType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "WORDLE",
+                "value": "WORDLE"
+              },
+              {
+                "name": "WORD_SEARCH",
+                "value": "WORD_SEARCH"
+              }
+            ]
+          },
+          "Difficulty": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "EASY",
+                "value": "EASY"
+              },
+              {
+                "name": "MEDIUM",
+                "value": "MEDIUM"
+              },
+              {
+                "name": "HARD",
+                "value": "HARD"
+              }
+            ]
+          }
+        },
         "models": {
-          "Post": {
+          "Activity": {
             "fields": {
-              "authorId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
-              },
-              "content": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -40,8 +66,49 @@
                   "kind": "scalar"
                 }
               },
+              "difficulty": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "Difficulty",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "gridSize": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "maxGuesses": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "showHints": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "targetWordId": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
@@ -54,57 +121,174 @@
                   "kind": "scalar"
                 }
               },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ActivityType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
+              },
+              "wordListId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
-              "author": {
+              "targetWord": {
                 "cardinality": "N:1",
                 "on": {
                   "localFields": [
-                    "authorId"
+                    "targetWordId"
                   ],
                   "targetFields": [
                     "id"
                   ]
                 },
                 "to": {
-                  "model": "User",
+                  "model": "Word",
+                  "namespace": "public"
+                }
+              },
+              "wordList": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "wordListId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "WordList",
                   "namespace": "public"
                 }
               }
             },
             "storage": {
               "fields": {
-                "authorId": {
-                  "column": "authorId"
-                },
-                "content": {
-                  "column": "content"
-                },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "difficulty": {
+                  "column": "difficulty"
+                },
+                "gridSize": {
+                  "column": "gridSize"
                 },
                 "id": {
                   "column": "id"
                 },
+                "maxGuesses": {
+                  "column": "maxGuesses"
+                },
+                "showHints": {
+                  "column": "showHints"
+                },
+                "targetWordId": {
+                  "column": "targetWordId"
+                },
                 "title": {
                   "column": "title"
                 },
+                "type": {
+                  "column": "type"
+                },
                 "updatedAt": {
                   "column": "updatedAt"
+                },
+                "wordListId": {
+                  "column": "wordListId"
                 }
               },
               "namespaceId": "public",
-              "table": "post"
+              "table": "activity"
             }
           },
-          "User": {
+          "Phoneme": {
+            "fields": {
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "symbol": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "wordId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "word": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "wordId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Word",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "id": {
+                  "column": "id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "symbol": {
+                  "column": "symbol"
+                },
+                "wordId": {
+                  "column": "wordId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "phoneme"
+            }
+          },
+          "Word": {
             "fields": {
               "createdAt": {
                 "nullable": false,
@@ -113,8 +297,125 @@
                   "kind": "scalar"
                 }
               },
-              "email": {
+              "hint": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "text": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "wordListId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "phonemes": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "wordId"
+                  ]
+                },
+                "to": {
+                  "model": "Phoneme",
+                  "namespace": "public"
+                }
+              },
+              "targetActivity": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "targetWordId"
+                  ]
+                },
+                "to": {
+                  "model": "Activity",
+                  "namespace": "public"
+                }
+              },
+              "wordList": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "wordListId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "WordList",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "hint": {
+                  "column": "hint"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "text": {
+                  "column": "text"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "wordListId": {
+                  "column": "wordListId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "word"
+            }
+          },
+          "WordList": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -128,7 +429,7 @@
                 }
               },
               "name": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -140,28 +441,36 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
-              },
-              "username": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
-              "posts": {
+              "activities": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "authorId"
+                    "wordListId"
                   ]
                 },
                 "to": {
-                  "model": "Post",
+                  "model": "Activity",
+                  "namespace": "public"
+                }
+              },
+              "words": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "wordListId"
+                  ]
+                },
+                "to": {
+                  "model": "Word",
                   "namespace": "public"
                 }
               }
@@ -171,8 +480,8 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
-                "email": {
-                  "column": "email"
+                "description": {
+                  "column": "description"
                 },
                 "id": {
                   "column": "id"
@@ -182,13 +491,10 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "username": {
-                  "column": "username"
                 }
               },
               "namespaceId": "public",
-              "table": "user"
+              "table": "wordList"
             }
           }
         }
@@ -200,18 +506,20 @@
       "public": {
         "entries": {
           "table": {
-            "post": {
+            "activity": {
+              "checks": [
+                {
+                  "expression": "\"difficulty\" IN ('EASY', 'MEDIUM', 'HARD')",
+                  "name": "activity_difficulty_check_244bf003",
+                  "prefix": "activity_difficulty_check"
+                },
+                {
+                  "expression": "\"type\" IN ('WORDLE', 'WORD_SEARCH')",
+                  "name": "activity_type_check_be5b415e",
+                  "prefix": "activity_type_check"
+                }
+              ],
               "columns": {
-                "authorId": {
-                  "codecId": "pg/int4@1",
-                  "nativeType": "int4",
-                  "nullable": false
-                },
-                "content": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
-                  "nullable": true
-                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -220,6 +528,26 @@
                   },
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "difficulty": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "EASY"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "Difficulty",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "gridSize": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/int4@1",
@@ -230,14 +558,49 @@
                   "nativeType": "int4",
                   "nullable": false
                 },
+                "maxGuesses": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "showHints": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "targetWordId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
                 "title": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
                 },
+                "type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ActivityType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "wordListId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
                   "nullable": false
                 }
               },
@@ -245,27 +608,52 @@
                 {
                   "source": {
                     "columns": [
-                      "authorId"
+                      "wordListId"
                     ],
                     "namespaceId": "public",
-                    "tableName": "post"
+                    "tableName": "activity"
                   },
                   "target": {
                     "columns": [
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "user"
+                    "tableName": "wordList"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "targetWordId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "activity"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "word"
                   }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "authorId"
+                    "targetWordId"
                   ],
-                  "name": "post_authorId_idx_e47547ed",
-                  "prefix": "post_authorId_idx",
+                  "name": "activity_targetWordId_idx_cadcd86b",
+                  "prefix": "activity_targetWordId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "wordListId"
+                  ],
+                  "name": "activity_wordListId_idx_44326c7d",
+                  "prefix": "activity_wordListId_idx",
                   "unique": false
                 }
               ],
@@ -276,7 +664,77 @@
               },
               "uniques": []
             },
-            "user": {
+            "phoneme": {
+              "columns": {
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "symbol": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "wordId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "wordId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "phoneme"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "word"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "wordId"
+                  ],
+                  "name": "phoneme_wordId_idx_123c525a",
+                  "prefix": "phoneme_wordId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "wordId",
+                    "position"
+                  ]
+                }
+              ]
+            },
+            "word": {
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -287,10 +745,87 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
-                "email": {
+                "hint": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "text": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "wordListId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "wordListId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "word"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "wordList"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "wordListId"
+                  ],
+                  "name": "word_wordListId_idx_44326c7d",
+                  "prefix": "word_wordListId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "wordList": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/int4@1",
@@ -304,17 +839,12 @@
                 "name": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
                   "nullable": false
-                },
-                "username": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
-                  "nullable": true
                 }
               },
               "foreignKeys": [],
@@ -324,12 +854,23 @@
                   "id"
                 ]
               },
-              "uniques": [
-                {
-                  "columns": [
-                    "email"
-                  ]
-                }
+              "uniques": []
+            }
+          },
+          "valueSet": {
+            "ActivityType": {
+              "kind": "valueSet",
+              "values": [
+                "WORDLE",
+                "WORD_SEARCH"
+              ]
+            },
+            "Difficulty": {
+              "kind": "valueSet",
+              "values": [
+                "EASY",
+                "MEDIUM",
+                "HARD"
               ]
             }
           }
@@ -338,10 +879,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1e8412e162dbbe69f4bb3bf8d07f0280ae67eaab15c34dcf201e67468315428d"
+    "storageHash": "13e426bf8f14410e456a1d7f0cdeb7473efd84072edcac96b6f69d7addd60a79"
   },
   "execution": {
-    "executionHash": "4abff323cc88151ef9c9a0ec90122cfee6d46814a118cdb66a9fdd94a4123463",
+    "executionHash": "8c231f3642e36d52fbaed49d2f6ad15378eb35bf8adfec871d59d5aa54e7846c",
     "mutations": {
       "defaults": [
         {
@@ -356,7 +897,7 @@
           "ref": {
             "column": "updatedAt",
             "namespace": "public",
-            "table": "post"
+            "table": "activity"
           }
         },
         {
@@ -371,7 +912,22 @@
           "ref": {
             "column": "updatedAt",
             "namespace": "public",
-            "table": "user"
+            "table": "word"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "wordList"
           }
         }
       ]
