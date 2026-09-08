@@ -1,76 +1,259 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+type Phoneme = {
+  id: number;
+  symbol: string;
+  position: number;
+  wordId: number;
+};
+
+export type WordSearchStoredWord = {
+  id: number;
+  text: string;
+  hint: string | null;
+  wordListId: number;
+  phonemes: Phoneme[];
+};
 
 type WordSearchGameProps = {
   difficulty: "easy" | "medium" | "hard";
   showHints: boolean;
+  words: WordSearchStoredWord[];
 };
 
-const words = [
-  { english: "SHIP", phonemes: ["ʃ", "ɪ", "p"] },
-  { english: "THIN", phonemes: ["θ", "ɪ", "n"] },
-  { english: "CAT", phonemes: ["k", "æ", "t"] },
-  { english: "DOG", phonemes: ["d", "ɔ", "ɡ"] },
-  { english: "SUN", phonemes: ["s", "ɐ", "n"] },
+type GameWord = {
+  id: number;
+  english: string;
+  hint: string | null;
+  phonemes: string[];
+};
+
+const fillerPhonemes = [
+  "p",
+  "t",
+  "k",
+  "b",
+  "d",
+  "ɡ",
+  "n",
+  "m",
+  "ŋ",
+  "f",
+  "s",
+  "θ",
+  "ʃ",
+  "v",
+  "z",
+  "ð",
+  "ʒ",
+  "l",
+  "ɹ",
+  "w",
+  "j",
+  "h",
+  "tʃ",
+  "dʒ",
+  "iː",
+  "ɪ",
+  "e",
+  "æ",
+  "ɐ",
+  "ɐː",
+  "ɜː",
+  "ʉː",
+  "ɔ",
+  "oː",
+  "ʊ",
+  "æɪ",
+  "ɑe",
+  "oɪ",
+  "əʉ",
+  "æɔ",
+  "ɪə",
+  "eə",
+  "ə",
 ];
 
-const grid = [
-  ["ʃ", "ɪ", "p", "m", "θ", "s", "æ", "n"],
-  ["k", "æ", "t", "ɪ", "ɹ", "d", "ɔ", "p"],
-  ["d", "ɔ", "ɡ", "n", "s", "ɐ", "n", "k"],
-  ["θ", "ɪ", "n", "p", "æ", "m", "ʃ", "t"],
-  ["s", "ɐ", "n", "ɡ", "ɪ", "k", "ɔ", "d"],
-  ["m", "p", "æ", "t", "ɹ", "ɪ", "n", "s"],
-  ["ɪ", "θ", "k", "ɔ", "d", "ʃ", "p", "æ"],
-  ["n", "s", "ɐ", "m", "t", "ɡ", "ɪ", "ɹ"],
-];
+function buildGrid(words: GameWord[]) {
+  const longestWord = Math.max(
+    0,
+    ...words.map((word) => word.phonemes.length)
+  );
+
+  /*
+    Minimum 8x8 to preserve the Assessment 1 appearance.
+    The grid can grow if a word contains more than
+    eight phonemes or the list contains more than
+    eight words.
+  */
+  const gridSize = Math.max(
+    8,
+    longestWord,
+    words.length
+  );
+
+  const grid = Array.from(
+    { length: gridSize },
+    (_, rowIndex) =>
+      Array.from(
+        { length: gridSize },
+        (_, columnIndex) => {
+          const fillerIndex =
+            (rowIndex * gridSize + columnIndex) %
+            fillerPhonemes.length;
+
+          return fillerPhonemes[fillerIndex];
+        }
+      )
+  );
+
+  /*
+    Each word is placed horizontally on its own row.
+    One phoneme occupies one grid cell, including
+    multi-character phonemes such as tʃ and eə.
+  */
+  words.forEach((word, rowIndex) => {
+    word.phonemes.forEach(
+      (phoneme, columnIndex) => {
+        grid[rowIndex][columnIndex] = phoneme;
+      }
+    );
+  });
+
+  return grid;
+}
 
 export default function WordSearchGame({
   difficulty,
   showHints,
+  words,
 }: WordSearchGameProps) {
-  const [selectedCells, setSelectedCells] = useState<string[]>([]);
-  const [foundWords, setFoundWords] = useState<string[]>([]);
+  const gameWords = useMemo<GameWord[]>(
+    () =>
+      words
+        .map((word) => ({
+          id: word.id,
+          english: word.text,
+          hint: word.hint,
+          phonemes: word.phonemes
+            .slice()
+            .sort(
+              (a, b) =>
+                a.position - b.position
+            )
+            .map(
+              (phoneme) =>
+                phoneme.symbol.trim()
+            )
+            .filter(Boolean),
+        }))
+        .filter(
+          (word) =>
+            word.english.trim() !== "" &&
+            word.phonemes.length > 0
+        ),
+    [words]
+  );
+
+  const grid = useMemo(
+    () => buildGrid(gameWords),
+    [gameWords]
+  );
+
+  const [selectedCells, setSelectedCells] =
+    useState<string[]>([]);
+
+  const [foundWordIds, setFoundWordIds] =
+    useState<number[]>([]);
+
   const [message, setMessage] = useState(
     "Select phonemes in the grid to find a word."
   );
 
-  function selectCell(row: number, column: number) {
+  /*
+    Reset the game whenever the selected database
+    word list changes.
+  */
+  useEffect(() => {
+    setSelectedCells([]);
+    setFoundWordIds([]);
+    setMessage(
+      "Select phonemes in the grid to find a word."
+    );
+  }, [words]);
+
+  function selectCell(
+    row: number,
+    column: number
+  ) {
     const id = `${row}-${column}`;
 
     if (selectedCells.includes(id)) {
       setSelectedCells(
-        selectedCells.filter((selectedId) => selectedId !== id)
+        selectedCells.filter(
+          (selectedId) =>
+            selectedId !== id
+        )
       );
     } else {
-      setSelectedCells([...selectedCells, id]);
+      setSelectedCells([
+        ...selectedCells,
+        id,
+      ]);
     }
   }
 
   function checkSelection() {
-    const selectedSymbols = selectedCells.map((id) => {
-      const [row, column] = id.split("-").map(Number);
-      return grid[row][column];
-    });
+    if (selectedCells.length === 0) {
+      setMessage(
+        "Select at least one phoneme before checking."
+      );
+      return;
+    }
 
-    const selectedWord = selectedSymbols.join("");
+    const selectedSymbols =
+      selectedCells.map((id) => {
+        const [row, column] = id
+          .split("-")
+          .map(Number);
 
-    const match = words.find(
-      (word) => word.phonemes.join("") === selectedWord
+        return grid[row]?.[column] ?? "";
+      });
+
+    const selectedWord =
+      selectedSymbols.join("");
+
+    const match = gameWords.find(
+      (word) =>
+        word.phonemes.join("") ===
+        selectedWord
     );
 
     if (match) {
-      if (!foundWords.includes(match.english)) {
-        setFoundWords([...foundWords, match.english]);
+      if (
+        !foundWordIds.includes(match.id)
+      ) {
+        setFoundWordIds([
+          ...foundWordIds,
+          match.id,
+        ]);
+
         setMessage(
-          `Found! /${match.phonemes.join(" ")}/ = ${match.english}`
+          `Found! /${match.phonemes.join(
+            " "
+          )}/ = ${match.english}`
         );
       } else {
-        setMessage(`${match.english} has already been found.`);
+        setMessage(
+          `${match.english} has already been found.`
+        );
       }
     } else {
-      setMessage("That selection does not match a word. Try again.");
+      setMessage(
+        "That selection does not match a word. Try again."
+      );
     }
 
     setSelectedCells([]);
@@ -78,13 +261,34 @@ export default function WordSearchGame({
 
   function clearSelection() {
     setSelectedCells([]);
-    setMessage("Selection cleared.");
+
+    setMessage(
+      "Selection cleared."
+    );
   }
 
   function resetGame() {
     setSelectedCells([]);
-    setFoundWords([]);
-    setMessage("Select phonemes in the grid to find a word.");
+    setFoundWordIds([]);
+
+    setMessage(
+      "Select phonemes in the grid to find a word."
+    );
+  }
+
+  if (gameWords.length === 0) {
+    return (
+      <div className="word-search-game">
+        <section className="word-search-panel">
+          <h3>Activity Preview</h3>
+
+          <p className="game-message">
+            This word list does not contain
+            any valid phoneme words yet.
+          </p>
+        </section>
+      </div>
+    );
   }
 
   return (
@@ -93,40 +297,73 @@ export default function WordSearchGame({
         <h3>Activity Preview</h3>
 
         <p>
-          Find all five phoneme words hidden in the grid.
-          Difficulty: <strong>{difficulty}</strong>.
+          Find all {gameWords.length}{" "}
+          {gameWords.length === 1
+            ? "phoneme word"
+            : "phoneme words"}{" "}
+          hidden in the grid. Difficulty:{" "}
+          <strong>{difficulty}</strong>.
         </p>
 
         <div
           className="word-search-grid"
           aria-label="Phoneme word search grid"
+          style={{
+            gridTemplateColumns:
+              `repeat(${grid.length}, minmax(0, 1fr))`,
+          }}
         >
-          {grid.map((row, rowIndex) =>
-            row.map((symbol, columnIndex) => {
-              const id = `${rowIndex}-${columnIndex}`;
-              const selected = selectedCells.includes(id);
+          {grid.map(
+            (row, rowIndex) =>
+              row.map(
+                (
+                  symbol,
+                  columnIndex
+                ) => {
+                  const id =
+                    `${rowIndex}-${columnIndex}`;
 
-              return (
-                <button
-                  type="button"
-                  key={id}
-                  className={`word-search-cell ${
-                    selected ? "selected-cell" : ""
-                  }`}
-                  onClick={() => selectCell(rowIndex, columnIndex)}
-                  aria-pressed={selected}
-                  aria-label={`Phoneme ${symbol}, row ${
-                    rowIndex + 1
-                  }, column ${columnIndex + 1}`}
-                >
-                  {symbol}
-                </button>
-              );
-            })
+                  const selected =
+                    selectedCells.includes(
+                      id
+                    );
+
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      className={`word-search-cell ${
+                        selected
+                          ? "selected-cell"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        selectCell(
+                          rowIndex,
+                          columnIndex
+                        )
+                      }
+                      aria-pressed={
+                        selected
+                      }
+                      aria-label={`Phoneme ${symbol}, row ${
+                        rowIndex + 1
+                      }, column ${
+                        columnIndex + 1
+                      }`}
+                    >
+                      {symbol}
+                    </button>
+                  );
+                }
+              )
           )}
         </div>
 
-        <p className="game-message" aria-live="polite">
+        <p
+          className="game-message"
+          aria-live="polite"
+        >
           {message}
         </p>
 
@@ -161,50 +398,77 @@ export default function WordSearchGame({
         <h3>Words to Find</h3>
 
         <p>
-  {difficulty === "easy"
-    ? "Use the English words and phoneme forms as hints."
-    : difficulty === "medium"
-      ? "Use the phoneme forms as hints."
-      : "Find each hidden phoneme word without a word list hint."}
-</p>
+          {difficulty === "easy"
+            ? "Use the English words and phoneme forms as hints."
+            : difficulty === "medium"
+              ? "Use the phoneme forms as hints."
+              : "Find each hidden phoneme word without a word list hint."}
+        </p>
 
         <ul className="word-search-list">
-          {words.map((word) => {
-            const found = foundWords.includes(word.english);
+          {gameWords.map((word) => {
+            const found =
+              foundWordIds.includes(
+                word.id
+              );
 
             return (
               <li
-                key={word.english}
-                className={found ? "found-word" : ""}
+                key={word.id}
+                className={
+                  found
+                    ? "found-word"
+                    : ""
+                }
               >
                 <strong>
-  {found
-    ? `/${word.phonemes.join(" ")}/`
-    : !showHints
-      ? "Hidden word"
-      : difficulty === "easy" || difficulty === "medium"
-        ? `/${word.phonemes.join(" ")}/`
-        : "Hidden word"}
-</strong>
+                  {found
+                    ? `/${word.phonemes.join(
+                        " "
+                      )}/`
+                    : !showHints
+                      ? "Hidden word"
+                      : difficulty ===
+                            "easy" ||
+                          difficulty ===
+                            "medium"
+                        ? `/${word.phonemes.join(
+                            " "
+                          )}/`
+                        : "Hidden word"}
+                </strong>
 
-<span>
-  {found
-    ? `${word.english} ✓`
-    : !showHints
-      ? "Not found"
-      : difficulty === "easy"
-        ? word.english
-        : difficulty === "medium"
-          ? "English answer hidden"
-          : "Not found"}
-</span>
+                <span>
+                  {found
+                    ? `${word.english} ✓`
+                    : !showHints
+                      ? "Not found"
+                      : difficulty ===
+                            "easy"
+                        ? word.english
+                        : difficulty ===
+                            "medium"
+                          ? "English answer hidden"
+                          : "Not found"}
+                </span>
+
+                {showHints &&
+                  difficulty ===
+                    "easy" &&
+                  word.hint &&
+                  !found && (
+                    <small>
+                      Hint: {word.hint}
+                    </small>
+                  )}
               </li>
             );
           })}
         </ul>
 
         <p className="word-count">
-          Found {foundWords.length} of {words.length}
+          Found {foundWordIds.length} of{" "}
+          {gameWords.length}
         </p>
       </aside>
     </div>
