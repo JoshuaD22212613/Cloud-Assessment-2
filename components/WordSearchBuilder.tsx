@@ -39,17 +39,34 @@ export default function WordSearchBuilder() {
   const [difficulty, setDifficulty] =
     useState<WordSearchDifficulty>("easy");
 
-  const [showHints, setShowHints] = useState(true);
+  const [showHints, setShowHints] =
+    useState(true);
 
-  // Database data
-  const [wordLists, setWordLists] = useState<WordList[]>([]);
-  const [words, setWords] = useState<StoredWord[]>([]);
+  const [wordLists, setWordLists] =
+    useState<WordList[]>([]);
 
-  const [selectedWordListId, setSelectedWordListId] =
-    useState<number | null>(null);
+  const [words, setWords] =
+    useState<StoredWord[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [
+    selectedWordListId,
+    setSelectedWordListId,
+  ] = useState<number | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [saveMessage, setSaveMessage] =
+    useState("");
+
+  const [saveError, setSaveError] =
+    useState("");
 
   useEffect(() => {
     async function loadDatabaseData() {
@@ -57,11 +74,13 @@ export default function WordSearchBuilder() {
         setLoading(true);
         setError("");
 
-        const [wordListsResponse, wordsResponse] =
-          await Promise.all([
-            fetch("/api/wordlists"),
-            fetch("/api/words"),
-          ]);
+        const [
+          wordListsResponse,
+          wordsResponse,
+        ] = await Promise.all([
+          fetch("/api/wordlists"),
+          fetch("/api/words"),
+        ]);
 
         if (!wordListsResponse.ok) {
           throw new Error(
@@ -106,16 +125,147 @@ export default function WordSearchBuilder() {
     loadDatabaseData();
   }, []);
 
-  const selectedWords = words.filter(
-    (word) =>
-      word.wordListId === selectedWordListId
-  );
+  const selectedWords =
+    words.filter(
+      (word) =>
+        word.wordListId ===
+        selectedWordListId
+    );
 
   function handleWordListChange(
     wordListId: number
   ) {
-    setSelectedWordListId(wordListId);
+    setSelectedWordListId(
+      wordListId
+    );
+
     setError("");
+    setSaveMessage("");
+    setSaveError("");
+  }
+
+  function getGridSize() {
+    if (selectedWords.length === 0) {
+      return 8;
+    }
+
+    const longestWord =
+      Math.max(
+        ...selectedWords.map(
+          (word) =>
+            word.phonemes.length
+        )
+      );
+
+    return Math.max(
+      8,
+      selectedWords.length,
+      longestWord
+    );
+  }
+
+  async function saveConfiguration() {
+    setSaveMessage("");
+    setSaveError("");
+
+    if (!activityTitle.trim()) {
+      setSaveError(
+        "Please enter an activity title."
+      );
+      return;
+    }
+
+    if (!selectedWordListId) {
+      setSaveError(
+        "Please select a word list."
+      );
+      return;
+    }
+
+    if (selectedWords.length === 0) {
+      setSaveError(
+        "The selected word list must contain at least one word."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response =
+        await fetch(
+          "/api/activities",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              title:
+                activityTitle.trim(),
+
+              type:
+                "WORD_SEARCH",
+
+              difficulty:
+                difficulty.toUpperCase(),
+
+              showHints,
+
+              gridSize:
+                getGridSize(),
+
+              maxGuesses:
+                null,
+
+              wordListId:
+                selectedWordListId,
+
+              targetWordId:
+                null,
+            }),
+          }
+        );
+
+      let data: {
+        id?: number;
+        error?: string;
+      } | null = null;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Failed to save configuration."
+        );
+      }
+
+      setSaveMessage(
+        `Configuration saved successfully. Activity ID: ${data?.id}`
+      );
+    } catch (error) {
+      console.error(
+        "Failed to save Word Search configuration:",
+        error
+      );
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save the configuration."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function downloadHtml() {
@@ -133,47 +283,87 @@ export default function WordSearchBuilder() {
       return;
     }
 
-    /*
-      We will connect the database words to the
-      standalone generator in the next step.
-    */
-    const html = generateWordSearchHtml({
-      title:
-        activityTitle ||
-        "Phoneme Word Search",
-      difficulty,
-      showHints,
-    });
+    const html =
+  generateWordSearchHtml({
+    title:
+      activityTitle ||
+      "Phoneme Word Search",
 
-    const blob = new Blob([html], {
-      type: "text/html;charset=utf-8",
-    });
+    difficulty,
+    showHints,
 
-    const url = URL.createObjectURL(blob);
+    words: selectedWords.map(
+      (word) => ({
+        id: word.id,
+        english: word.text,
+        hint: word.hint,
+
+        phonemes: word.phonemes
+          .slice()
+          .sort(
+            (a, b) =>
+              a.position -
+              b.position
+          )
+          .map(
+            (phoneme) =>
+              phoneme.symbol
+          ),
+      })
+    ),
+  });
+
+    const blob =
+      new Blob(
+        [html],
+        {
+          type:
+            "text/html;charset=utf-8",
+        }
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
+
     link.download =
       "phoneme-word-search.html";
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    document.body.appendChild(
+      link
+    );
 
-    URL.revokeObjectURL(url);
+    link.click();
+
+    document.body.removeChild(
+      link
+    );
+
+    URL.revokeObjectURL(
+      url
+    );
   }
 
   return (
     <div className="builder-layout">
       <section className="builder-controls">
-        <h3>Activity Settings</h3>
+        <h3>
+          Activity Settings
+        </h3>
 
         <p className="builder-description">
-          Configure the Word Search activity
-          and preview the result before
-          generating the final HTML file.
+          Configure the Word Search
+          activity and preview the
+          result before generating
+          the final HTML file.
         </p>
 
         {loading && (
@@ -197,11 +387,14 @@ export default function WordSearchBuilder() {
             id="word-search-title"
             type="text"
             value={activityTitle}
-            onChange={(event) =>
+            onChange={(event) => {
               setActivityTitle(
                 event.target.value
-              )
-            }
+              );
+
+              setSaveMessage("");
+              setSaveError("");
+            }}
             maxLength={60}
           />
         </div>
@@ -213,10 +406,15 @@ export default function WordSearchBuilder() {
 
           <select
             id="word-search-list"
-            value={selectedWordListId ?? ""}
+            value={
+              selectedWordListId ??
+              ""
+            }
             onChange={(event) =>
               handleWordListChange(
-                Number(event.target.value)
+                Number(
+                  event.target.value
+                )
               )
             }
             disabled={
@@ -224,25 +422,33 @@ export default function WordSearchBuilder() {
               wordLists.length === 0
             }
           >
-            {wordLists.length === 0 && (
+            {wordLists.length ===
+              0 && (
               <option value="">
-                No word lists available
+                No word lists
+                available
               </option>
             )}
 
-            {wordLists.map((wordList) => (
-              <option
-                key={wordList.id}
-                value={wordList.id}
-              >
-                {wordList.name}
-              </option>
-            ))}
+            {wordLists.map(
+              (wordList) => (
+                <option
+                  key={
+                    wordList.id
+                  }
+                  value={
+                    wordList.id
+                  }
+                >
+                  {wordList.name}
+                </option>
+              )
+            )}
           </select>
 
           <p className="field-help">
-            Words are loaded from the
-            PostgreSQL database.
+            Words are loaded from
+            the PostgreSQL database.
           </p>
         </div>
 
@@ -254,12 +460,15 @@ export default function WordSearchBuilder() {
           <select
             id="word-search-difficulty"
             value={difficulty}
-            onChange={(event) =>
+            onChange={(event) => {
               setDifficulty(
                 event.target
                   .value as WordSearchDifficulty
-              )
-            }
+              );
+
+              setSaveMessage("");
+              setSaveError("");
+            }}
           >
             <option value="easy">
               Easy
@@ -275,9 +484,9 @@ export default function WordSearchBuilder() {
           </select>
 
           <p className="field-help">
-            Difficulty controls the amount
-            of assistance provided to
-            students.
+            Difficulty controls the
+            amount of assistance
+            provided to students.
           </p>
         </div>
 
@@ -286,11 +495,14 @@ export default function WordSearchBuilder() {
             id="word-search-hints"
             type="checkbox"
             checked={showHints}
-            onChange={(event) =>
+            onChange={(event) => {
               setShowHints(
                 event.target.checked
-              )
-            }
+              );
+
+              setSaveMessage("");
+              setSaveError("");
+            }}
           />
 
           <label htmlFor="word-search-hints">
@@ -300,19 +512,22 @@ export default function WordSearchBuilder() {
 
         <div className="selected-word">
           <span>
-            Selected database word list
+            Selected database
+            word list
           </span>
 
           {selectedWordListId ? (
             <>
               <strong>
                 {selectedWords.length}{" "}
-                {selectedWords.length === 1
+                {selectedWords.length ===
+                1
                   ? "word"
                   : "words"}
               </strong>
 
-              {selectedWords.length > 0 ? (
+              {selectedWords.length >
+              0 ? (
                 <>
                   <small>
                     {selectedWords
@@ -327,38 +542,49 @@ export default function WordSearchBuilder() {
                     {selectedWords
                       .map(
                         (word) =>
-                          `${word.text}: /${word.phonemes
+                          `${
+                            word.text
+                          }: /${word.phonemes
                             .slice()
                             .sort(
-                              (a, b) =>
+                              (
+                                a,
+                                b
+                              ) =>
                                 a.position -
                                 b.position
                             )
                             .map(
-                              (phoneme) =>
+                              (
+                                phoneme
+                              ) =>
                                 phoneme.symbol
                             )
-                            .join(" ")}/`
+                            .join(
+                              " "
+                            )}/`
                       )
                       .join(" • ")}
                   </small>
                 </>
               ) : (
                 <small>
-                  No words are stored in
-                  this list yet.
+                  No words are stored
+                  in this list yet.
                 </small>
               )}
             </>
           ) : (
             <>
               <strong>
-                No word list selected
+                No word list
+                selected
               </strong>
 
               <small>
-                Create or select a stored
-                word list first.
+                Create or select a
+                stored word list
+                first.
               </small>
             </>
           )}
@@ -367,11 +593,43 @@ export default function WordSearchBuilder() {
         <button
           type="button"
           className="generate-button"
+          onClick={
+            saveConfiguration
+          }
+          disabled={
+            saving ||
+            loading ||
+            !selectedWordListId ||
+            selectedWords.length ===
+              0
+          }
+        >
+          {saving
+            ? "Saving..."
+            : "Save Configuration"}
+        </button>
+
+        {saveMessage && (
+          <p className="field-help">
+            {saveMessage}
+          </p>
+        )}
+
+        {saveError && (
+          <p className="field-help">
+            {saveError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="generate-button"
           onClick={downloadHtml}
           disabled={
             loading ||
             !selectedWordListId ||
-            selectedWords.length === 0
+            selectedWords.length ===
+              0
           }
         >
           Generate HTML
@@ -396,17 +654,11 @@ export default function WordSearchBuilder() {
           </span>
         </div>
 
-        {/*
-          The existing game remains here for
-          this checkpoint. Next we will replace
-          its hard-coded words/grid with
-          selectedWords.
-        */}
         <WordSearchGame
-  difficulty={difficulty}
-  showHints={showHints}
-  words={selectedWords}
-/>
+          difficulty={difficulty}
+          showHints={showHints}
+          words={selectedWords}
+        />
       </section>
     </div>
   );

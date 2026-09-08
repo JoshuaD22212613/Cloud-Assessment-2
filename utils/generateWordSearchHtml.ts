@@ -1,45 +1,167 @@
+type WordSearchHtmlWord = {
+  id: number;
+  english: string;
+  hint: string | null;
+  phonemes: string[];
+};
+
 type WordSearchHtmlSettings = {
   title: string;
   difficulty: "easy" | "medium" | "hard";
   showHints: boolean;
+  words: WordSearchHtmlWord[];
 };
 
-export function generateWordSearchHtml({
-  title,
-  difficulty,
-  showHints,
-}: WordSearchHtmlSettings): string {
-  const words = [
-    { english: "SHIP", phonemes: ["ʃ", "ɪ", "p"] },
-    { english: "THIN", phonemes: ["θ", "ɪ", "n"] },
-    { english: "CAT", phonemes: ["k", "æ", "t"] },
-    { english: "DOG", phonemes: ["d", "ɔ", "ɡ"] },
-    { english: "SUN", phonemes: ["s", "ɐ", "n"] },
-  ];
+const fillerPhonemes = [
+  "p",
+  "t",
+  "k",
+  "b",
+  "d",
+  "ɡ",
+  "n",
+  "m",
+  "ŋ",
+  "f",
+  "s",
+  "θ",
+  "ʃ",
+  "v",
+  "z",
+  "ð",
+  "ʒ",
+  "l",
+  "ɹ",
+  "w",
+  "j",
+  "h",
+  "tʃ",
+  "dʒ",
+  "iː",
+  "ɪ",
+  "e",
+  "æ",
+  "ɐ",
+  "ɐː",
+  "ɜː",
+  "ʉː",
+  "ɔ",
+  "oː",
+  "ʊ",
+  "æɪ",
+  "ɑe",
+  "oɪ",
+  "əʉ",
+  "æɔ",
+  "ɪə",
+  "eə",
+  "ə",
+];
 
-  const grid = [
-    ["ʃ", "ɪ", "p", "m", "θ", "s", "æ", "n"],
-    ["k", "æ", "t", "ɪ", "ɹ", "d", "ɔ", "p"],
-    ["d", "ɔ", "ɡ", "n", "s", "ɐ", "n", "k"],
-    ["θ", "ɪ", "n", "p", "æ", "m", "ʃ", "t"],
-    ["s", "ɐ", "n", "ɡ", "ɪ", "k", "ɔ", "d"],
-    ["m", "p", "æ", "t", "ɹ", "ɪ", "n", "s"],
-    ["ɪ", "θ", "k", "ɔ", "d", "ʃ", "p", "æ"],
-    ["n", "s", "ɐ", "m", "t", "ɡ", "ɪ", "ɹ"],
-  ];
-
-  const safeTitle = title
+function escapeHtml(value: string) {
+  return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function safeJson(value: unknown) {
+  return JSON.stringify(value).replaceAll(
+    "<",
+    "\\u003c"
+  );
+}
+
+function buildGrid(
+  words: WordSearchHtmlWord[]
+) {
+  const longestWord = Math.max(
+    0,
+    ...words.map(
+      (word) => word.phonemes.length
+    )
+  );
+
+  const gridSize = Math.max(
+    8,
+    words.length,
+    longestWord
+  );
+
+  const grid = Array.from(
+    { length: gridSize },
+    (_, rowIndex) =>
+      Array.from(
+        { length: gridSize },
+        (_, columnIndex) => {
+          const fillerIndex =
+            (
+              rowIndex * gridSize +
+              columnIndex
+            ) %
+            fillerPhonemes.length;
+
+          return fillerPhonemes[
+            fillerIndex
+          ];
+        }
+      )
+  );
+
+  words.forEach(
+    (word, rowIndex) => {
+      word.phonemes.forEach(
+        (
+          phoneme,
+          columnIndex
+        ) => {
+          grid[rowIndex][
+            columnIndex
+          ] = phoneme;
+        }
+      );
+    }
+  );
+
+  return grid;
+}
+
+export function generateWordSearchHtml({
+  title,
+  difficulty,
+  showHints,
+  words,
+}: WordSearchHtmlSettings): string {
+  const validWords = words.filter(
+    (word) =>
+      word.english.trim() !== "" &&
+      word.phonemes.length > 0 &&
+      word.phonemes.every(
+        (phoneme) =>
+          phoneme.trim() !== ""
+      )
+  );
+
+  const grid =
+    buildGrid(validWords);
+
+  const safeTitle =
+    escapeHtml(title);
+
+  const wordCount =
+    validWords.length;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
   <title>${safeTitle}</title>
 
@@ -57,7 +179,7 @@ export function generateWordSearchHtml({
     }
 
     .game {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -77,7 +199,8 @@ export function generateWordSearchHtml({
 
     .game-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 220px;
+      grid-template-columns:
+        minmax(0, 1fr) 240px;
       gap: 25px;
       align-items: start;
     }
@@ -92,10 +215,9 @@ export function generateWordSearchHtml({
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(8, 48px);
       gap: 5px;
-
       width: fit-content;
+      max-width: 100%;
       margin: 10px auto 25px;
     }
 
@@ -171,20 +293,23 @@ export function generateWordSearchHtml({
 
       padding: 10px 0;
 
-      border-bottom: 1px solid #dce3ea;
+      border-bottom:
+        1px solid #dce3ea;
     }
 
     .word-list li:last-child {
       border-bottom: none;
     }
 
-    .word-list span {
+    .word-list span,
+    .word-list small {
       color: #667085;
       font-size: 0.85rem;
     }
 
     .word-list .found strong,
-    .word-list .found span {
+    .word-list .found span,
+    .word-list .found small {
       text-decoration: line-through;
       opacity: 0.65;
     }
@@ -205,7 +330,6 @@ export function generateWordSearchHtml({
 
     @media (max-width: 500px) {
       .grid {
-        grid-template-columns: repeat(8, minmax(30px, 1fr));
         width: 100%;
         gap: 3px;
       }
@@ -225,14 +349,19 @@ export function generateWordSearchHtml({
 </head>
 
 <body>
-
   <main class="game">
 
     <header>
       <h1>${safeTitle}</h1>
 
       <p>
-        Find all five phoneme words hidden in the puzzle.
+        Find all ${wordCount}
+        ${
+          wordCount === 1
+            ? "phoneme word"
+            : "phoneme words"
+        }
+        hidden in the puzzle.
       </p>
 
       <p class="difficulty">
@@ -302,7 +431,7 @@ export function generateWordSearchHtml({
           id="word-count"
           class="word-count"
         >
-          Found 0 of 5
+          Found 0 of ${wordCount}
         </p>
 
       </aside>
@@ -311,14 +440,20 @@ export function generateWordSearchHtml({
   </main>
 
   <script>
-    const words = ${JSON.stringify(words)};
-    const gridData = ${JSON.stringify(grid)};
+    const words =
+      ${safeJson(validWords)};
 
-    const difficulty = ${JSON.stringify(difficulty)};
-    const showHints = ${JSON.stringify(showHints)};
+    const gridData =
+      ${safeJson(grid)};
+
+    const difficulty =
+      ${safeJson(difficulty)};
+
+    const showHints =
+      ${safeJson(showHints)};
 
     let selectedCells = [];
-    let foundWords = [];
+    let foundWordIds = [];
 
     const gridElement =
       document.getElementById("grid");
@@ -333,55 +468,94 @@ export function generateWordSearchHtml({
       document.getElementById("word-count");
 
     const hintDescription =
-      document.getElementById("hint-description");
+      document.getElementById(
+        "hint-description"
+      );
 
     function createGrid() {
       gridElement.innerHTML = "";
 
-      gridData.forEach(function(row, rowIndex) {
-        row.forEach(function(symbol, columnIndex) {
+      const size =
+        gridData.length;
 
-          const id = rowIndex + "-" + columnIndex;
+      gridElement.style.gridTemplateColumns =
+        "repeat(" +
+        size +
+        ", 48px)";
 
-          const button =
-            document.createElement("button");
+      gridData.forEach(
+        function(
+          row,
+          rowIndex
+        ) {
+          row.forEach(
+            function(
+              symbol,
+              columnIndex
+            ) {
+              const id =
+                rowIndex +
+                "-" +
+                columnIndex;
 
-          button.type = "button";
-          button.className = "cell";
-          button.textContent = symbol;
+              const button =
+                document.createElement(
+                  "button"
+                );
 
-          button.setAttribute(
-            "aria-label",
-            "Phoneme " +
-              symbol +
-              ", row " +
-              (rowIndex + 1) +
-              ", column " +
-              (columnIndex + 1)
-          );
+              button.type =
+                "button";
 
-          button.addEventListener(
-            "click",
-            function() {
-              selectCell(
-                id,
+              button.className =
+                "cell";
+
+              button.textContent =
+                symbol;
+
+              button.setAttribute(
+                "aria-label",
+                "Phoneme " +
+                  symbol +
+                  ", row " +
+                  (rowIndex + 1) +
+                  ", column " +
+                  (columnIndex + 1)
+              );
+
+              button.setAttribute(
+                "aria-pressed",
+                "false"
+              );
+
+              button.addEventListener(
+                "click",
+                function() {
+                  selectCell(
+                    id,
+                    button
+                  );
+                }
+              );
+
+              gridElement.appendChild(
                 button
               );
             }
           );
-
-          gridElement.appendChild(button);
-        });
-      });
+        }
+      );
     }
 
-    function selectCell(id, button) {
-
+    function selectCell(
+      id,
+      button
+    ) {
       const index =
-        selectedCells.indexOf(id);
+        selectedCells.indexOf(
+          id
+        );
 
       if (index !== -1) {
-
         selectedCells.splice(
           index,
           1
@@ -395,9 +569,7 @@ export function generateWordSearchHtml({
           "aria-pressed",
           "false"
         );
-
       } else {
-
         selectedCells.push(id);
 
         button.classList.add(
@@ -412,10 +584,8 @@ export function generateWordSearchHtml({
     }
 
     function selectedSymbols() {
-
       return selectedCells.map(
         function(id) {
-
           const parts =
             id.split("-");
 
@@ -425,12 +595,23 @@ export function generateWordSearchHtml({
           const column =
             Number(parts[1]);
 
-          return gridData[row][column];
+          return gridData[
+            row
+          ][column];
         }
       );
     }
 
     function checkSelection() {
+      if (
+        selectedCells.length ===
+        0
+      ) {
+        message.textContent =
+          "Select at least one phoneme before checking.";
+
+        return;
+      }
 
       const symbols =
         selectedSymbols();
@@ -439,40 +620,40 @@ export function generateWordSearchHtml({
         symbols.join("");
 
       const match =
-        words.find(function(word) {
-          return (
-            word.phonemes.join("") ===
-            selectedWord
-          );
-        });
+        words.find(
+          function(word) {
+            return (
+              word.phonemes.join(
+                ""
+              ) ===
+              selectedWord
+            );
+          }
+        );
 
       if (match) {
-
         if (
-          foundWords.indexOf(
-            match.english
+          foundWordIds.indexOf(
+            match.id
           ) === -1
         ) {
-
-          foundWords.push(
-            match.english
+          foundWordIds.push(
+            match.id
           );
 
           message.textContent =
             "Found! /" +
-            match.phonemes.join(" ") +
+            match.phonemes.join(
+              " "
+            ) +
             "/ = " +
             match.english;
-
         } else {
-
           message.textContent =
             match.english +
             " has already been found.";
         }
-
       } else {
-
         message.textContent =
           "That selection does not match a word. Try again.";
       }
@@ -482,28 +663,27 @@ export function generateWordSearchHtml({
     }
 
     function clearSelectedCells() {
-
       selectedCells = [];
 
       document
         .querySelectorAll(
           ".cell.selected"
         )
-        .forEach(function(cell) {
+        .forEach(
+          function(cell) {
+            cell.classList.remove(
+              "selected"
+            );
 
-          cell.classList.remove(
-            "selected"
-          );
-
-          cell.setAttribute(
-            "aria-pressed",
-            "false"
-          );
-        });
+            cell.setAttribute(
+              "aria-pressed",
+              "false"
+            );
+          }
+        );
     }
 
     function clearSelection() {
-
       clearSelectedCells();
 
       message.textContent =
@@ -511,128 +691,150 @@ export function generateWordSearchHtml({
     }
 
     function renderWordList() {
-
       wordList.innerHTML = "";
 
-      words.forEach(function(word) {
+      words.forEach(
+        function(word) {
+          const found =
+            foundWordIds.indexOf(
+              word.id
+            ) !== -1;
 
-        const found =
-          foundWords.indexOf(
-            word.english
-          ) !== -1;
+          const item =
+            document.createElement(
+              "li"
+            );
 
-        const item =
-          document.createElement("li");
+          if (found) {
+            item.className =
+              "found";
+          }
 
-        if (found) {
-          item.className = "found";
+          const phonemeText =
+            document.createElement(
+              "strong"
+            );
+
+          const englishText =
+            document.createElement(
+              "span"
+            );
+
+          if (found) {
+            phonemeText.textContent =
+              "/" +
+              word.phonemes.join(
+                " "
+              ) +
+              "/";
+
+            englishText.textContent =
+              word.english +
+              " ✓";
+          } else if (
+            !showHints
+          ) {
+            phonemeText.textContent =
+              "Hidden word";
+
+            englishText.textContent =
+              "Not found";
+          } else if (
+            difficulty ===
+            "easy"
+          ) {
+            phonemeText.textContent =
+              "/" +
+              word.phonemes.join(
+                " "
+              ) +
+              "/";
+
+            englishText.textContent =
+              word.english;
+          } else if (
+            difficulty ===
+            "medium"
+          ) {
+            phonemeText.textContent =
+              "/" +
+              word.phonemes.join(
+                " "
+              ) +
+              "/";
+
+            englishText.textContent =
+              "English answer hidden";
+          } else {
+            phonemeText.textContent =
+              "Hidden word";
+
+            englishText.textContent =
+              "Not found";
+          }
+
+          item.appendChild(
+            phonemeText
+          );
+
+          item.appendChild(
+            englishText
+          );
+
+          if (
+            !found &&
+            showHints &&
+            difficulty ===
+              "easy" &&
+            word.hint
+          ) {
+            const hintText =
+              document.createElement(
+                "small"
+              );
+
+            hintText.textContent =
+              "Hint: " +
+              word.hint;
+
+            item.appendChild(
+              hintText
+            );
+          }
+
+          wordList.appendChild(
+            item
+          );
         }
-
-        const phonemeText =
-          document.createElement("strong");
-
-        const englishText =
-          document.createElement("span");
-
-        if (found) {
-
-          phonemeText.textContent =
-            "/" +
-            word.phonemes.join(" ") +
-            "/";
-
-          englishText.textContent =
-            word.english + " ✓";
-
-        } else if (!showHints) {
-
-          phonemeText.textContent =
-            "Hidden word";
-
-          englishText.textContent =
-            "Not found";
-
-        } else if (
-          difficulty === "easy"
-        ) {
-
-          phonemeText.textContent =
-            "/" +
-            word.phonemes.join(" ") +
-            "/";
-
-          englishText.textContent =
-            word.english;
-
-        } else if (
-          difficulty === "medium"
-        ) {
-
-          phonemeText.textContent =
-            "/" +
-            word.phonemes.join(" ") +
-            "/";
-
-          englishText.textContent =
-            "English answer hidden";
-
-        } else {
-
-          phonemeText.textContent =
-            "Hidden word";
-
-          englishText.textContent =
-            "Not found";
-        }
-
-        item.appendChild(
-          phonemeText
-        );
-
-        item.appendChild(
-          englishText
-        );
-
-        wordList.appendChild(
-          item
-        );
-      });
+      );
 
       wordCount.textContent =
         "Found " +
-        foundWords.length +
+        foundWordIds.length +
         " of " +
         words.length;
 
       if (!showHints) {
-
         hintDescription.textContent =
           "Find each hidden phoneme word.";
-
       } else if (
         difficulty === "easy"
       ) {
-
         hintDescription.textContent =
           "Use the English words and phoneme forms as hints.";
-
       } else if (
         difficulty === "medium"
       ) {
-
         hintDescription.textContent =
           "Use the phoneme forms as hints.";
-
       } else {
-
         hintDescription.textContent =
           "Find each word without a word list hint.";
       }
     }
 
     function resetGame() {
-
-      foundWords = [];
+      foundWordIds = [];
 
       clearSelectedCells();
 
