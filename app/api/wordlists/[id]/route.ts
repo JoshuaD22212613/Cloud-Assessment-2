@@ -6,7 +6,7 @@ type RouteContext = {
   }>;
 };
 
-// GET - Retrieve one word list by ID
+// GET - Retrieve one word list
 export async function GET(
   request: Request,
   context: RouteContext
@@ -15,6 +15,7 @@ export async function GET(
     const { id } = await context.params;
     const wordListId = Number(id);
 
+    // Validate the ID
     if (!Number.isInteger(wordListId) || wordListId <= 0) {
       return Response.json(
         { error: "Invalid word list ID" },
@@ -44,7 +45,7 @@ export async function GET(
   }
 }
 
-// PUT - Update one word list by ID
+// PUT - Update one word list
 export async function PUT(
   request: Request,
   context: RouteContext
@@ -53,6 +54,7 @@ export async function PUT(
     const { id } = await context.params;
     const wordListId = Number(id);
 
+    // Validate the ID
     if (!Number.isInteger(wordListId) || wordListId <= 0) {
       return Response.json(
         { error: "Invalid word list ID" },
@@ -60,23 +62,7 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-
-    const name =
-      typeof body.name === "string" ? body.name.trim() : "";
-
-    const description =
-      typeof body.description === "string"
-        ? body.description.trim()
-        : null;
-
-    if (!name) {
-      return Response.json(
-        { error: "Word list name is required" },
-        { status: 400 }
-      );
-    }
-
+    // Check that the word list exists
     const existingWordList = await db.orm.public.WordList
       .where({ id: wordListId })
       .first();
@@ -88,6 +74,35 @@ export async function PUT(
       );
     }
 
+    // Safely read the JSON request body
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must contain valid JSON" },
+        { status: 400 }
+      );
+    }
+
+    const name =
+      typeof body.name === "string" ? body.name.trim() : "";
+
+    const description =
+      typeof body.description === "string"
+        ? body.description.trim()
+        : null;
+
+    // Validate the word list name
+    if (!name) {
+      return Response.json(
+        { error: "Word list name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Update the word list
     const updatedWordList = await db.orm.public.WordList
       .where({ id: wordListId })
       .update({
@@ -106,7 +121,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete one word list by ID
+// DELETE - Delete one word list
 export async function DELETE(
   request: Request,
   context: RouteContext
@@ -115,6 +130,7 @@ export async function DELETE(
     const { id } = await context.params;
     const wordListId = Number(id);
 
+    // Validate the ID
     if (!Number.isInteger(wordListId) || wordListId <= 0) {
       return Response.json(
         { error: "Invalid word list ID" },
@@ -122,6 +138,7 @@ export async function DELETE(
       );
     }
 
+    // Check that the word list exists
     const existingWordList = await db.orm.public.WordList
       .where({ id: wordListId })
       .first();
@@ -133,6 +150,7 @@ export async function DELETE(
       );
     }
 
+    // Delete the word list
     await db.orm.public.WordList
       .where({ id: wordListId })
       .delete();

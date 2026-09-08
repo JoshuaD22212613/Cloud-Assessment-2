@@ -35,7 +35,17 @@ export async function GET() {
 // POST - Create a word and its phonemes
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Safely read the JSON request body
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must contain valid JSON" },
+        { status: 400 }
+      );
+    }
 
     const text =
       typeof body.text === "string" ? body.text.trim() : "";
@@ -102,7 +112,11 @@ export async function POST(request: Request) {
     // Create each phoneme in its correct position
     const phonemes = [];
 
-    for (let position = 0; position < phonemeSymbols.length; position++) {
+    for (
+      let position = 0;
+      position < phonemeSymbols.length;
+      position++
+    ) {
       const phoneme = await db.orm.public.Phoneme.create({
         symbol: phonemeSymbols[position],
         position,

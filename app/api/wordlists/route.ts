@@ -23,7 +23,16 @@ export async function GET() {
 // POST - Create a new word list
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    let body;
+
+try {
+  body = await request.json();
+} catch {
+  return Response.json(
+    { error: "Request body must contain valid JSON" },
+    { status: 400 }
+  );
+}
 
     const name =
       typeof body.name === "string" ? body.name.trim() : "";

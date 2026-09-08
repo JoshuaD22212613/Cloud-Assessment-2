@@ -21,7 +21,17 @@ export async function GET() {
 // POST - Create a new activity configuration
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Safely read the JSON request body
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must contain valid JSON" },
+        { status: 400 }
+      );
+    }
 
     const title =
       typeof body.title === "string" ? body.title.trim() : "";
@@ -56,7 +66,7 @@ export async function POST(request: Request) {
         ? null
         : Number(body.targetWordId);
 
-    // Basic validation
+    // Validate title
     if (!title) {
       return Response.json(
         { error: "Activity title is required" },
@@ -64,6 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate activity type
     if (type !== "WORDLE" && type !== "WORD_SEARCH") {
       return Response.json(
         { error: "Activity type must be WORDLE or WORD_SEARCH" },
@@ -71,6 +82,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate difficulty
     if (
       difficulty !== "EASY" &&
       difficulty !== "MEDIUM" &&
@@ -82,6 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate word list ID
     if (!Number.isInteger(wordListId) || wordListId <= 0) {
       return Response.json(
         { error: "Valid word list ID is required" },
@@ -89,6 +102,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate optional grid size
     if (
       gridSize !== null &&
       (!Number.isInteger(gridSize) || gridSize <= 0)
@@ -99,6 +113,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate optional maximum guesses
     if (
       maxGuesses !== null &&
       (!Number.isInteger(maxGuesses) || maxGuesses <= 0)
@@ -109,6 +124,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate optional target word ID
     if (
       targetWordId !== null &&
       (!Number.isInteger(targetWordId) || targetWordId <= 0)
@@ -119,7 +135,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check that the selected word list exists
+    // Make sure the selected word list exists
     const wordList = await db.orm.public.WordList
       .where({ id: wordListId })
       .first();
@@ -131,7 +147,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // If a target word is supplied, make sure it exists
+    // If a target word is supplied, validate it
     if (targetWordId !== null) {
       const targetWord = await db.orm.public.Word
         .where({ id: targetWordId })
@@ -144,19 +160,18 @@ export async function POST(request: Request) {
         );
       }
 
-      // Target word must belong to the selected word list
+      // Prevent a target word from another word list
       if (targetWord.wordListId !== wordListId) {
         return Response.json(
           {
-            error:
-              "Target word must belong to the selected word list",
+            error: "Target word must belong to the selected word list",
           },
           { status: 400 }
         );
       }
     }
 
-    // Activity-specific validation
+    // Wordle requires a target word
     if (type === "WORDLE" && targetWordId === null) {
       return Response.json(
         { error: "Wordle activities require a target word" },
@@ -164,6 +179,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Word Search requires a grid size
     if (type === "WORD_SEARCH" && gridSize === null) {
       return Response.json(
         { error: "Word Search activities require a grid size" },
@@ -171,6 +187,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Create the activity
     const activity = await db.orm.public.Activity.create({
       title,
       type,

@@ -82,7 +82,17 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
+    // Safely read the JSON request body
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must contain valid JSON" },
+        { status: 400 }
+      );
+    }
 
     const text =
       typeof body.text === "string" ? body.text.trim() : "";
@@ -92,6 +102,7 @@ export async function PUT(
 
     const wordListId = Number(body.wordListId);
 
+    // Validate the word
     if (!text) {
       return Response.json(
         { error: "Word text is required" },
@@ -99,6 +110,7 @@ export async function PUT(
       );
     }
 
+    // Validate the word list ID
     if (!Number.isInteger(wordListId) || wordListId <= 0) {
       return Response.json(
         { error: "Valid word list ID is required" },
@@ -106,6 +118,7 @@ export async function PUT(
       );
     }
 
+    // Validate phonemes
     if (!Array.isArray(body.phonemes) || body.phonemes.length === 0) {
       return Response.json(
         { error: "At least one phoneme is required" },
@@ -124,6 +137,7 @@ export async function PUT(
       );
     }
 
+    // Make sure the selected word list exists
     const wordList = await db.orm.public.WordList
       .where({ id: wordListId })
       .first();
@@ -135,6 +149,7 @@ export async function PUT(
       );
     }
 
+    // Update the word
     const updatedWord = await db.orm.public.Word
       .where({ id: wordId })
       .update({
@@ -143,7 +158,7 @@ export async function PUT(
         wordListId,
       });
 
-    // Remove old phonemes
+    // Remove the old phonemes
     const oldPhonemes = await db.orm.public.Phoneme
       .where({ wordId })
       .all();
@@ -154,10 +169,14 @@ export async function PUT(
         .delete();
     }
 
-    // Create replacement phonemes
+    // Create the replacement phonemes
     const phonemes = [];
 
-    for (let position = 0; position < phonemeSymbols.length; position++) {
+    for (
+      let position = 0;
+      position < phonemeSymbols.length;
+      position++
+    ) {
       const phoneme = await db.orm.public.Phoneme.create({
         symbol: phonemeSymbols[position],
         position,
