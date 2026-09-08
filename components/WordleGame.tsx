@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import { phonemes } from "../data/phonemes";
+
 import PhonemeButton from "./PhonemeButton";
-
-const targetWord = ["ʃ", "ɪ", "p"];
-const englishWord = "SHIP";
-
 
 type TileStatus = "correct" | "present" | "incorrect";
 
@@ -18,25 +16,43 @@ type CompletedGuess = {
 type WordleGameProps = {
   difficulty: "easy" | "medium" | "hard";
   showHints: boolean;
+  targetWord: string[];
+  englishWord: string;
 };
 
 export default function WordleGame({
   difficulty,
   showHints,
+  targetWord,
+  englishWord,
 }: WordleGameProps) {
-      const maxGuesses =
+  const maxGuesses =
     difficulty === "easy"
       ? 6
       : difficulty === "medium"
         ? 5
         : 4;
+
   const [currentGuess, setCurrentGuess] = useState<string[]>([]);
   const [guesses, setGuesses] = useState<CompletedGuess[]>([]);
+
   const [message, setMessage] = useState(
     "Select phonemes from the keyboard to make a guess."
   );
+
   const [gameWon, setGameWon] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+
+  // Reset the game when a different database word is selected
+  useEffect(() => {
+    setCurrentGuess([]);
+    setGuesses([]);
+    setGameWon(false);
+    setGameOver(false);
+    setMessage(
+      "Select phonemes from the keyboard to make a guess."
+    );
+  }, [targetWord, englishWord]);
 
   function addPhoneme(symbol: string) {
     if (gameWon || gameOver) return;
@@ -53,10 +69,13 @@ export default function WordleGame({
   }
 
   function checkGuess(symbols: string[]): TileStatus[] {
-    const statuses: TileStatus[] = symbols.map(() => "incorrect");
+    const statuses: TileStatus[] = symbols.map(
+      () => "incorrect"
+    );
+
     const remainingTarget = [...targetWord];
 
-    // First pass: find phonemes in the correct position.
+    // First pass: find phonemes in the correct position
     symbols.forEach((symbol, index) => {
       if (symbol === targetWord[index]) {
         statuses[index] = "correct";
@@ -64,7 +83,7 @@ export default function WordleGame({
       }
     });
 
-    // Second pass: find phonemes present in another position.
+    // Second pass: find phonemes present in another position
     symbols.forEach((symbol, index) => {
       if (statuses[index] === "correct") return;
 
@@ -82,12 +101,21 @@ export default function WordleGame({
   function submitGuess() {
     if (gameWon || gameOver) return;
 
+    if (targetWord.length === 0) {
+      setMessage("No target word has been selected.");
+      return;
+    }
+
     if (currentGuess.length !== targetWord.length) {
-      setMessage(`Choose ${targetWord.length} phonemes before submitting.`);
+      setMessage(
+        `Choose ${targetWord.length} phonemes before submitting.`
+      );
+
       return;
     }
 
     const statuses = checkGuess(currentGuess);
+
     const newGuesses = [
       ...guesses,
       {
@@ -104,12 +132,20 @@ export default function WordleGame({
 
     if (isCorrect) {
       setGameWon(true);
-      setMessage(`Correct! /${targetWord.join(" ")}/ = ${englishWord}`);
+
+      setMessage(
+        `Correct! /${targetWord.join(" ")}/ = ${englishWord}`
+      );
     } else if (newGuesses.length >= maxGuesses) {
       setGameOver(true);
-      setMessage(`Game over. The answer was ${englishWord}.`);
+
+      setMessage(
+        `Game over. The answer was ${englishWord}.`
+      );
     } else {
-      setMessage("Not quite. Try another combination of phonemes.");
+      setMessage(
+        "Not quite. Try another combination of phonemes."
+      );
     }
 
     setCurrentGuess([]);
@@ -120,7 +156,27 @@ export default function WordleGame({
     setGuesses([]);
     setGameWon(false);
     setGameOver(false);
-    setMessage("Select phonemes from the keyboard to make a guess.");
+
+    setMessage(
+      "Select phonemes from the keyboard to make a guess."
+    );
+  }
+
+  if (targetWord.length === 0) {
+    return (
+      <div className="wordle-game">
+        <section className="wordle-panel">
+          <div className="wordle-instructions">
+            <h3>Activity Preview</h3>
+
+            <p>
+              Select a stored database word to preview the
+              Wordle activity.
+            </p>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   return (
@@ -128,70 +184,90 @@ export default function WordleGame({
       <section className="wordle-panel">
         <div className="wordle-instructions">
           <h3>Activity Preview</h3>
+
           <p>
-  Build a three-phoneme word. Each tile represents one phoneme rather
-  than one English letter. You have {maxGuesses} attempts.
-</p>
+            Build a {targetWord.length}-phoneme word.
+            Each tile represents one phoneme rather than one
+            English letter. You have {maxGuesses} attempts.
+          </p>
         </div>
 
         <div
           className="wordle-board"
           aria-label="Wordle guess board"
         >
-          {Array.from({ length: maxGuesses }).map((_, rowIndex) => {
-            const completedGuess = guesses[rowIndex];
-            const isCurrentRow = rowIndex === guesses.length && !gameOver;
+          {Array.from({ length: maxGuesses }).map(
+            (_, rowIndex) => {
+              const completedGuess = guesses[rowIndex];
 
-            return (
-              <div className="wordle-row" key={rowIndex}>
-                {targetWord.map((_, columnIndex) => {
-                  const completedSymbol =
-                    completedGuess?.symbols[columnIndex] ?? "";
+              const isCurrentRow =
+                rowIndex === guesses.length && !gameOver;
 
-                  const currentSymbol = isCurrentRow
-                    ? currentGuess[columnIndex] ?? ""
-                    : "";
+              return (
+                <div
+                  className="wordle-row"
+                  key={rowIndex}
+                >
+                  {targetWord.map((_, columnIndex) => {
+                    const completedSymbol =
+                      completedGuess?.symbols[columnIndex] ?? "";
 
-                  const status = completedGuess?.statuses[columnIndex];
+                    const currentSymbol = isCurrentRow
+                      ? currentGuess[columnIndex] ?? ""
+                      : "";
 
-                  return (
-                    <div
-                      key={columnIndex}
-                      className={`wordle-tile ${
-                        status ? `tile-${status}` : ""
-                      }`}
-                      aria-label={
-                        status
-                          ? `${completedSymbol}: ${status}`
-                          : currentSymbol || "Empty phoneme tile"
-                      }
-                    >
-                      {completedSymbol || currentSymbol}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                    const status =
+                      completedGuess?.statuses[columnIndex];
+
+                    return (
+                      <div
+                        key={columnIndex}
+                        className={`wordle-tile ${
+                          status ? `tile-${status}` : ""
+                        }`}
+                        aria-label={
+                          status
+                            ? `${completedSymbol}: ${status}`
+                            : currentSymbol ||
+                              "Empty phoneme tile"
+                        }
+                      >
+                        {completedSymbol || currentSymbol}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+          )}
         </div>
 
         {difficulty !== "hard" && (
-  <div className="wordle-legend" aria-label="Guess feedback legend">
-    <span>
-      <strong>Correct:</strong> right phoneme, right position
-    </span>
+          <div
+            className="wordle-legend"
+            aria-label="Guess feedback legend"
+          >
+            <span>
+              <strong>Correct:</strong> right phoneme,
+              right position
+            </span>
 
-    <span>
-      <strong>Present:</strong> right phoneme, different position
-    </span>
+            <span>
+              <strong>Present:</strong> right phoneme,
+              different position
+            </span>
 
-    <span>
-      <strong>Incorrect:</strong> phoneme is not in the answer
-    </span>
-  </div>
-)}
+            <span>
+              <strong>Incorrect:</strong> phoneme is not
+              in the answer
+            </span>
+          </div>
+        )}
 
-        <p className="game-message" aria-live="polite">
+        <p
+          className="game-message"
+          aria-live="polite"
+        >
           {message}
         </p>
 
@@ -226,20 +302,20 @@ export default function WordleGame({
         <h3>Phoneme Keyboard</h3>
 
         <p>
-  {showHints
-    ? "Hover over a phoneme or focus it with the keyboard to see its English sound hint."
-    : "Select phonemes from the keyboard to build your guess."}
-</p>
+          {showHints
+            ? "Hover over a phoneme or focus it with the keyboard to see its English sound hint."
+            : "Select phonemes from the keyboard to build your guess."}
+        </p>
 
         <div className="phoneme-keyboard">
           {phonemes.map((phoneme) => (
             <PhonemeButton
-  key={phoneme.symbol}
-  symbol={phoneme.symbol}
-  label={showHints ? phoneme.label : ""}
-  example={showHints ? phoneme.example : ""}
-  onClick={addPhoneme}
-/>
+              key={phoneme.symbol}
+              symbol={phoneme.symbol}
+              label={showHints ? phoneme.label : ""}
+              example={showHints ? phoneme.example : ""}
+              onClick={addPhoneme}
+            />
           ))}
         </div>
       </section>
