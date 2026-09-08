@@ -226,12 +226,22 @@ export default function WordleBuilder() {
     }
   }
 
-  function downloadHtml() {
-    const html = generateWordleHtml({
-      title: activityTitle || "Phoneme Wordle",
-      difficulty,
-      showHints,
-    });
+function downloadHtml() {
+  if (!selectedWord) {
+    setError(
+      "Please select a stored word before generating the activity."
+    );
+    return;
+  }
+
+  const html = generateWordleHtml({
+    title: activityTitle || "Phoneme Wordle",
+    difficulty,
+    showHints,
+    targetWord: targetPhonemes,
+    englishWord: selectedWord.text,
+    hint: selectedWord.hint,
+  });
 
     const blob = new Blob([html], {
       type: "text/html;charset=utf-8",

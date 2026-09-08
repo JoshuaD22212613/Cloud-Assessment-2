@@ -2,12 +2,18 @@ type WordleHtmlSettings = {
   title: string;
   difficulty: "easy" | "medium" | "hard";
   showHints: boolean;
+  targetWord: string[];
+  englishWord: string;
+  hint?: string | null;
 };
 
 export function generateWordleHtml({
   title,
   difficulty,
   showHints,
+  targetWord,
+  englishWord,
+  hint,
 }: WordleHtmlSettings): string {
   const maxGuesses =
     difficulty === "easy"
@@ -15,9 +21,6 @@ export function generateWordleHtml({
       : difficulty === "medium"
         ? 5
         : 4;
-
-  const targetWord = ["ʃ", "ɪ", "p"];
-  const englishWord = "SHIP";
 
   const keyboard = [
     ["p", "P", "pin"],
@@ -61,6 +64,7 @@ export function generateWordleHtml({
     ["əʉ", "OA", "boat"],
     ["æɔ", "OW", "cloud"],
     ["ɪə", "EAR", "beard"],
+    ["eə", "AIR", "chair"],
     ["ə", "UH", "about"],
   ];
 
@@ -109,6 +113,16 @@ export function generateWordleHtml({
     .difficulty {
       color: #667085;
       text-transform: capitalize;
+    }
+
+    .hint {
+      max-width: 500px;
+      margin: 12px auto 0;
+      padding: 10px 14px;
+      background: #ffffff;
+      border: 1px solid #dce3ea;
+      border-radius: 8px;
+      color: #475467;
     }
 
     .board {
@@ -243,6 +257,10 @@ export function generateWordleHtml({
         width: 55px;
         height: 55px;
       }
+
+      .controls {
+        flex-wrap: wrap;
+      }
     }
   </style>
 </head>
@@ -253,10 +271,29 @@ export function generateWordleHtml({
 
     <header>
       <h1>${safeTitle}</h1>
-      <p>Build the three-phoneme word.</p>
+
+      <p>
+        Build the ${targetWord.length}-phoneme word.
+      </p>
+
       <p class="difficulty">
         Difficulty: ${difficulty} — ${maxGuesses} attempts
       </p>
+
+      ${
+        showHints && hint
+          ? `
+      <p class="hint">
+        Hint: ${hint
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;")}
+      </p>
+      `
+          : ""
+      }
     </header>
 
     <div
@@ -269,9 +306,20 @@ export function generateWordleHtml({
       difficulty !== "hard"
         ? `
     <div class="legend">
-      <span><strong>Correct:</strong> right phoneme, right position</span>
-      <span><strong>Present:</strong> right phoneme, different position</span>
-      <span><strong>Incorrect:</strong> phoneme is not in the answer</span>
+      <span>
+        <strong>Correct:</strong>
+        right phoneme, right position
+      </span>
+
+      <span>
+        <strong>Present:</strong>
+        right phoneme, different position
+      </span>
+
+      <span>
+        <strong>Incorrect:</strong>
+        phoneme is not in the answer
+      </span>
     </div>
     `
         : ""
@@ -331,20 +379,35 @@ export function generateWordleHtml({
     let gameFinished = false;
 
     const board = document.getElementById("board");
-    const keyboardElement = document.getElementById("keyboard");
-    const message = document.getElementById("message");
+    const keyboardElement =
+      document.getElementById("keyboard");
+    const message =
+      document.getElementById("message");
 
     function createBoard() {
       board.innerHTML = "";
 
-      for (let row = 0; row < maxGuesses; row++) {
-        const rowElement = document.createElement("div");
+      for (
+        let row = 0;
+        row < maxGuesses;
+        row++
+      ) {
+        const rowElement =
+          document.createElement("div");
+
         rowElement.className = "row";
 
-        for (let column = 0; column < targetWord.length; column++) {
-          const tile = document.createElement("div");
+        for (
+          let column = 0;
+          column < targetWord.length;
+          column++
+        ) {
+          const tile =
+            document.createElement("div");
+
           tile.className = "tile";
-          tile.id = "tile-" + row + "-" + column;
+          tile.id =
+            "tile-" + row + "-" + column;
 
           rowElement.appendChild(tile);
         }
@@ -363,7 +426,8 @@ export function generateWordleHtml({
         const label = item[1];
         const example = item[2];
 
-        const button = document.createElement("button");
+        const button =
+          document.createElement("button");
 
         button.type = "button";
         button.className = "key";
@@ -371,17 +435,39 @@ export function generateWordleHtml({
 
         ${
           showHints
-            ? `button.title = "/" + symbol + "/ — " + label + " (as in " + example + ")";
+            ? `
+        button.title =
+          "/" +
+          symbol +
+          "/ — " +
+          label +
+          " (as in " +
+          example +
+          ")";
+
         button.setAttribute(
           "aria-label",
-          symbol + ", " + label + ", as in " + example
-        );`
-            : `button.setAttribute("aria-label", symbol);`
+          symbol +
+            ", " +
+            label +
+            ", as in " +
+            example
+        );
+        `
+            : `
+        button.setAttribute(
+          "aria-label",
+          symbol
+        );
+        `
         }
 
-        button.addEventListener("click", function() {
-          addPhoneme(symbol);
-        });
+        button.addEventListener(
+          "click",
+          function() {
+            addPhoneme(symbol);
+          }
+        );
 
         keyboardElement.appendChild(button);
       });
@@ -392,7 +478,10 @@ export function generateWordleHtml({
         return;
       }
 
-      if (currentGuess.length < targetWord.length) {
+      if (
+        currentGuess.length <
+        targetWord.length
+      ) {
         currentGuess.push(symbol);
         updateCurrentRow();
       }
@@ -412,43 +501,63 @@ export function generateWordleHtml({
         return;
       }
 
-      for (let column = 0; column < targetWord.length; column++) {
-        const tile = document.getElementById(
-          "tile-" + guesses.length + "-" + column
-        );
+      for (
+        let column = 0;
+        column < targetWord.length;
+        column++
+      ) {
+        const tile =
+          document.getElementById(
+            "tile-" +
+              guesses.length +
+              "-" +
+              column
+          );
 
         if (tile) {
-          tile.textContent = currentGuess[column] || "";
+          tile.textContent =
+            currentGuess[column] || "";
         }
       }
     }
 
     function checkGuess(guess) {
-      const statuses = guess.map(function() {
-        return "incorrect";
-      });
+      const statuses =
+        guess.map(function() {
+          return "incorrect";
+        });
 
-      const remaining = targetWord.slice();
+      const remaining =
+        targetWord.slice();
 
-      guess.forEach(function(symbol, index) {
-        if (symbol === targetWord[index]) {
-          statuses[index] = "correct";
-          remaining[index] = "";
+      guess.forEach(
+        function(symbol, index) {
+          if (
+            symbol === targetWord[index]
+          ) {
+            statuses[index] = "correct";
+            remaining[index] = "";
+          }
         }
-      });
+      );
 
-      guess.forEach(function(symbol, index) {
-        if (statuses[index] === "correct") {
-          return;
+      guess.forEach(
+        function(symbol, index) {
+          if (
+            statuses[index] === "correct"
+          ) {
+            return;
+          }
+
+          const foundIndex =
+            remaining.indexOf(symbol);
+
+          if (foundIndex !== -1) {
+            statuses[index] = "present";
+            remaining[foundIndex] = "";
+          }
         }
-
-        const foundIndex = remaining.indexOf(symbol);
-
-        if (foundIndex !== -1) {
-          statuses[index] = "present";
-          remaining[foundIndex] = "";
-        }
-      });
+      );
 
       return statuses;
     }
@@ -458,50 +567,88 @@ export function generateWordleHtml({
         return;
       }
 
-      if (currentGuess.length !== targetWord.length) {
+      if (
+        currentGuess.length !==
+        targetWord.length
+      ) {
         message.textContent =
-          "Choose " + targetWord.length + " phonemes before submitting.";
+          "Choose " +
+          targetWord.length +
+          " phonemes before submitting.";
+
         return;
       }
 
-      const statuses = checkGuess(currentGuess);
+      const statuses =
+        checkGuess(currentGuess);
+
       const rowIndex = guesses.length;
 
-      currentGuess.forEach(function(symbol, column) {
-        const tile = document.getElementById(
-          "tile-" + rowIndex + "-" + column
+      currentGuess.forEach(
+        function(symbol, column) {
+          const tile =
+            document.getElementById(
+              "tile-" +
+                rowIndex +
+                "-" +
+                column
+            );
+
+          if (tile) {
+            tile.textContent = symbol;
+            tile.classList.add(
+              statuses[column]
+            );
+          }
+        }
+      );
+
+      const correct =
+        currentGuess.every(
+          function(symbol, index) {
+            return (
+              symbol ===
+              targetWord[index]
+            );
+          }
         );
 
-        tile.textContent = symbol;
-        tile.classList.add(statuses[column]);
-      });
-
-      const correct = currentGuess.every(function(symbol, index) {
-        return symbol === targetWord[index];
-      });
-
-      guesses.push(currentGuess.slice());
+      guesses.push(
+        currentGuess.slice()
+      );
 
       if (correct) {
         message.textContent =
-          "Correct! /" + targetWord.join(" ") + "/ = " + englishWord;
+          "Correct! /" +
+          targetWord.join(" ") +
+          "/ = " +
+          englishWord;
 
         gameFinished = true;
         currentGuess = [];
+
         return;
       }
 
-      if (guesses.length >= maxGuesses) {
+      if (
+        guesses.length >= maxGuesses
+      ) {
         message.textContent =
-          "Game over. The answer was " + englishWord + ".";
+          "Game over. The answer was " +
+          englishWord +
+          ".";
 
         gameFinished = true;
         currentGuess = [];
+
         return;
       }
 
       currentGuess = [];
-      message.textContent = "Not quite. Try another combination.";
+
+      message.textContent =
+        "Not quite. Try another combination.";
+
       updateCurrentRow();
     }
 
@@ -510,7 +657,8 @@ export function generateWordleHtml({
       guesses = [];
       gameFinished = false;
 
-      message.textContent = "Select phonemes to make a guess.";
+      message.textContent =
+        "Select phonemes to make a guess.";
 
       createBoard();
     }
