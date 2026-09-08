@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import WordleGame from "./WordleGame";
 
@@ -49,8 +49,12 @@ export default function WordleBuilder() {
     useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
+
+  // Saving activity configuration
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   // Load word lists and words from the backend
   useEffect(() => {
@@ -59,10 +63,11 @@ export default function WordleBuilder() {
         setLoading(true);
         setError("");
 
-        const [wordListsResponse, wordsResponse] = await Promise.all([
-          fetch("/api/wordlists"),
-          fetch("/api/words"),
-        ]);
+        const [wordListsResponse, wordsResponse] =
+          await Promise.all([
+            fetch("/api/wordlists"),
+            fetch("/api/words"),
+          ]);
 
         if (!wordListsResponse.ok) {
           throw new Error("Failed to load word lists");
@@ -119,6 +124,17 @@ export default function WordleBuilder() {
   const selectedWord =
     words.find((word) => word.id === selectedWordId) ?? null;
 
+  // Keep the target phoneme array stable between renders.
+  const targetPhonemes = useMemo(
+    () =>
+      selectedWord
+        ? selectedWord.phonemes.map(
+            (phoneme) => phoneme.symbol
+          )
+        : [],
+    [selectedWord]
+  );
+
   function handleWordListChange(wordListId: number) {
     setSelectedWordListId(wordListId);
 
@@ -127,6 +143,87 @@ export default function WordleBuilder() {
     );
 
     setSelectedWordId(firstWord ? firstWord.id : null);
+
+    setSaveMessage("");
+    setSaveError("");
+  }
+
+  function getMaxGuesses() {
+    if (difficulty === "easy") {
+      return 6;
+    }
+
+    if (difficulty === "medium") {
+      return 5;
+    }
+
+    return 4;
+  }
+
+  async function saveConfiguration() {
+    setSaveMessage("");
+    setSaveError("");
+
+    if (!activityTitle.trim()) {
+      setSaveError("Please enter an activity title.");
+      return;
+    }
+
+    if (!selectedWordListId) {
+      setSaveError("Please select a word list.");
+      return;
+    }
+
+    if (!selectedWord) {
+      setSaveError("Please select a target word.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response = await fetch("/api/activities", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: activityTitle.trim(),
+          type: "WORDLE",
+          difficulty: difficulty.toUpperCase(),
+          showHints,
+          gridSize: null,
+          maxGuesses: getMaxGuesses(),
+          wordListId: selectedWordListId,
+          targetWordId: selectedWord.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Failed to save configuration"
+        );
+      }
+
+      setSaveMessage(
+        `Configuration saved successfully. Activity ID: ${data.id}`
+      );
+    } catch (error) {
+      console.error(
+        "Failed to save Wordle configuration:",
+        error
+      );
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save the configuration."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function downloadHtml() {
@@ -148,9 +245,7 @@ export default function WordleBuilder() {
     link.download = "phoneme-wordle.html";
 
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
@@ -187,9 +282,11 @@ export default function WordleBuilder() {
             id="activity-title"
             type="text"
             value={activityTitle}
-            onChange={(event) =>
-              setActivityTitle(event.target.value)
-            }
+            onChange={(event) => {
+              setActivityTitle(event.target.value);
+              setSaveMessage("");
+              setSaveError("");
+            }}
             maxLength={60}
           />
         </div>
@@ -203,7 +300,9 @@ export default function WordleBuilder() {
             id="word-list"
             value={selectedWordListId ?? ""}
             onChange={(event) =>
-              handleWordListChange(Number(event.target.value))
+              handleWordListChange(
+                Number(event.target.value)
+              )
             }
             disabled={loading || wordLists.length === 0}
           >
@@ -232,10 +331,16 @@ export default function WordleBuilder() {
           <select
             id="target-word"
             value={selectedWordId ?? ""}
-            onChange={(event) =>
-              setSelectedWordId(Number(event.target.value))
+            onChange={(event) => {
+              setSelectedWordId(
+                Number(event.target.value)
+              );
+              setSaveMessage("");
+              setSaveError("");
+            }}
+            disabled={
+              loading || filteredWords.length === 0
             }
-            disabled={loading || filteredWords.length === 0}
           >
             {filteredWords.length === 0 && (
               <option value="">
@@ -266,11 +371,13 @@ export default function WordleBuilder() {
           <select
             id="difficulty"
             value={difficulty}
-            onChange={(event) =>
+            onChange={(event) => {
               setDifficulty(
                 event.target.value as Difficulty
-              )
-            }
+              );
+              setSaveMessage("");
+              setSaveError("");
+            }}
           >
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
@@ -288,9 +395,11 @@ export default function WordleBuilder() {
             id="show-hints"
             type="checkbox"
             checked={showHints}
-            onChange={(event) =>
-              setShowHints(event.target.checked)
-            }
+            onChange={(event) => {
+              setShowHints(event.target.checked);
+              setSaveMessage("");
+              setSaveError("");
+            }}
           />
 
           <label htmlFor="show-hints">
@@ -305,7 +414,10 @@ export default function WordleBuilder() {
             <>
               <strong>
                 {selectedWord.phonemes
-                  .map((phoneme) => `/${phoneme.symbol}/`)
+                  .map(
+                    (phoneme) =>
+                      `/${phoneme.symbol}/`
+                  )
                   .join(" ")}
               </strong>
 
@@ -333,7 +445,31 @@ export default function WordleBuilder() {
         <button
           type="button"
           className="generate-button"
+          onClick={saveConfiguration}
+          disabled={saving || loading || !selectedWord}
+        >
+          {saving
+            ? "Saving..."
+            : "Save Configuration"}
+        </button>
+
+        {saveMessage && (
+          <p className="field-help">
+            {saveMessage}
+          </p>
+        )}
+
+        {saveError && (
+          <p className="field-help">
+            {saveError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="generate-button"
           onClick={downloadHtml}
+          disabled={loading || !selectedWord}
         >
           Generate HTML
         </button>
@@ -357,17 +493,11 @@ export default function WordleBuilder() {
         </div>
 
         <WordleGame
-  difficulty={difficulty}
-  showHints={showHints}
-  targetWord={
-    selectedWord
-      ? selectedWord.phonemes.map(
-          (phoneme) => phoneme.symbol
-        )
-      : []
-  }
-  englishWord={selectedWord?.text ?? ""}
-/>
+          difficulty={difficulty}
+          showHints={showHints}
+          targetWord={targetPhonemes}
+          englishWord={selectedWord?.text ?? ""}
+        />
       </section>
     </div>
   );
