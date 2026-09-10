@@ -15,17 +15,20 @@ export async function GET(
     const { id } = await context.params;
     const wordListId = Number(id);
 
-    // Validate the ID
-    if (!Number.isInteger(wordListId) || wordListId <= 0) {
+    if (
+      !Number.isInteger(wordListId) ||
+      wordListId <= 0
+    ) {
       return Response.json(
         { error: "Invalid word list ID" },
         { status: 400 }
       );
     }
 
-    const wordList = await db.orm.public.WordList
-      .where({ id: wordListId })
-      .first();
+    const wordList =
+      await db.orm.public.WordList
+        .where({ id: wordListId })
+        .first();
 
     if (!wordList) {
       return Response.json(
@@ -34,9 +37,14 @@ export async function GET(
       );
     }
 
-    return Response.json(wordList, { status: 200 });
+    return Response.json(wordList, {
+      status: 200,
+    });
   } catch (error) {
-    console.error("Failed to retrieve word list:", error);
+    console.error(
+      "Failed to retrieve word list:",
+      error
+    );
 
     return Response.json(
       { error: "Failed to retrieve word list" },
@@ -54,18 +62,20 @@ export async function PUT(
     const { id } = await context.params;
     const wordListId = Number(id);
 
-    // Validate the ID
-    if (!Number.isInteger(wordListId) || wordListId <= 0) {
+    if (
+      !Number.isInteger(wordListId) ||
+      wordListId <= 0
+    ) {
       return Response.json(
         { error: "Invalid word list ID" },
         { status: 400 }
       );
     }
 
-    // Check that the word list exists
-    const existingWordList = await db.orm.public.WordList
-      .where({ id: wordListId })
-      .first();
+    const existingWordList =
+      await db.orm.public.WordList
+        .where({ id: wordListId })
+        .first();
 
     if (!existingWordList) {
       return Response.json(
@@ -74,27 +84,30 @@ export async function PUT(
       );
     }
 
-    // Safely read the JSON request body
     let body;
 
     try {
       body = await request.json();
     } catch {
       return Response.json(
-        { error: "Request body must contain valid JSON" },
+        {
+          error:
+            "Request body must contain valid JSON",
+        },
         { status: 400 }
       );
     }
 
     const name =
-      typeof body.name === "string" ? body.name.trim() : "";
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
 
     const description =
       typeof body.description === "string"
         ? body.description.trim()
         : null;
 
-    // Validate the word list name
     if (!name) {
       return Response.json(
         { error: "Word list name is required" },
@@ -102,17 +115,22 @@ export async function PUT(
       );
     }
 
-    // Update the word list
-    const updatedWordList = await db.orm.public.WordList
-      .where({ id: wordListId })
-      .update({
-        name,
-        description: description || null,
-      });
+    const updatedWordList =
+      await db.orm.public.WordList
+        .where({ id: wordListId })
+        .update({
+          name,
+          description: description || null,
+        });
 
-    return Response.json(updatedWordList, { status: 200 });
+    return Response.json(updatedWordList, {
+      status: 200,
+    });
   } catch (error) {
-    console.error("Failed to update word list:", error);
+    console.error(
+      "Failed to update word list:",
+      error
+    );
 
     return Response.json(
       { error: "Failed to update word list" },
@@ -130,18 +148,20 @@ export async function DELETE(
     const { id } = await context.params;
     const wordListId = Number(id);
 
-    // Validate the ID
-    if (!Number.isInteger(wordListId) || wordListId <= 0) {
+    if (
+      !Number.isInteger(wordListId) ||
+      wordListId <= 0
+    ) {
       return Response.json(
         { error: "Invalid word list ID" },
         { status: 400 }
       );
     }
 
-    // Check that the word list exists
-    const existingWordList = await db.orm.public.WordList
-      .where({ id: wordListId })
-      .first();
+    const existingWordList =
+      await db.orm.public.WordList
+        .where({ id: wordListId })
+        .first();
 
     if (!existingWordList) {
       return Response.json(
@@ -150,14 +170,35 @@ export async function DELETE(
       );
     }
 
-    // Delete the word list
+    // Do not allow a list to be deleted while
+    // a saved activity configuration references it.
+    const linkedActivity =
+      await db.orm.public.Activity
+        .where({ wordListId })
+        .first();
+
+    if (linkedActivity) {
+      return Response.json(
+        {
+          error:
+            "This word list cannot be deleted because it is being used by a saved activity configuration.",
+        },
+        { status: 409 }
+      );
+    }
+
     await db.orm.public.WordList
       .where({ id: wordListId })
       .delete();
 
-    return new Response(null, { status: 204 });
+    return new Response(null, {
+      status: 204,
+    });
   } catch (error) {
-    console.error("Failed to delete word list:", error);
+    console.error(
+      "Failed to delete word list:",
+      error
+    );
 
     return Response.json(
       { error: "Failed to delete word list" },

@@ -71,14 +71,28 @@ export default function WordManager() {
       setWordLists(wordListsData);
       setWords(wordsData);
 
-      if (
-        selectedWordListId === null &&
-        wordListsData.length > 0
-      ) {
-        setSelectedWordListId(wordListsData[0].id);
-      }
+      setSelectedWordListId((currentId) => {
+        if (wordListsData.length === 0) {
+          return null;
+        }
+
+        const currentStillExists =
+          currentId !== null &&
+          wordListsData.some(
+            (wordList) => wordList.id === currentId
+          );
+
+        if (currentStillExists) {
+          return currentId;
+        }
+
+        return wordListsData[0].id;
+      });
     } catch (error) {
-      console.error("Failed to load word data:", error);
+      console.error(
+        "Failed to load word data:",
+        error
+      );
 
       setError(
         "Unable to load words. Please check the backend and database."
@@ -90,10 +104,27 @@ export default function WordManager() {
 
   useEffect(() => {
     loadData();
+
+    function handleWordListsUpdated() {
+      loadData();
+    }
+
+    window.addEventListener(
+      "wordlists-updated",
+      handleWordListsUpdated
+    );
+
+    return () => {
+      window.removeEventListener(
+        "wordlists-updated",
+        handleWordListsUpdated
+      );
+    };
   }, []);
 
   const filteredWords = words.filter(
-    (word) => word.wordListId === selectedWordListId
+    (word) =>
+      word.wordListId === selectedWordListId
   );
 
   function resetForm() {
@@ -113,7 +144,10 @@ export default function WordManager() {
 
     setPhonemeText(
       word.phonemes
-        .sort((a, b) => a.position - b.position)
+        .slice()
+        .sort(
+          (a, b) => a.position - b.position
+        )
         .map((phoneme) => phoneme.symbol)
         .join(" ")
     );
@@ -208,7 +242,10 @@ export default function WordManager() {
           : "Word added successfully."
       );
     } catch (error) {
-      console.error("Failed to save word:", error);
+      console.error(
+        "Failed to save word:",
+        error
+      );
 
       setError(
         error instanceof Error
@@ -269,7 +306,10 @@ export default function WordManager() {
         `"${word.text}" deleted successfully.`
       );
     } catch (error) {
-      console.error("Failed to delete word:", error);
+      console.error(
+        "Failed to delete word:",
+        error
+      );
 
       setError(
         error instanceof Error
@@ -296,13 +336,17 @@ export default function WordManager() {
           id="manager-word-list"
           value={selectedWordListId ?? ""}
           onChange={(event) => {
+            const value = event.target.value;
+
             setSelectedWordListId(
-              Number(event.target.value)
+              value ? Number(value) : null
             );
 
             resetForm();
           }}
-          disabled={loading || wordLists.length === 0}
+          disabled={
+            loading || wordLists.length === 0
+          }
         >
           {wordLists.length === 0 && (
             <option value="">
@@ -371,8 +415,9 @@ export default function WordManager() {
         />
 
         <p className="field-help">
-          Separate each phoneme with a space. Multi-character
-          phonemes such as tʃ are stored as one phoneme.
+          Separate each phoneme with a space.
+          Multi-character phonemes such as tʃ are
+          stored as one phoneme.
         </p>
       </div>
 
@@ -440,7 +485,8 @@ export default function WordManager() {
               </strong>
 
               <small>
-                /{word.phonemes
+                /
+                {word.phonemes
                   .slice()
                   .sort(
                     (a, b) =>
@@ -450,7 +496,8 @@ export default function WordManager() {
                     (phoneme) =>
                       phoneme.symbol
                   )
-                  .join(" ")}/
+                  .join(" ")}
+                /
               </small>
 
               {word.hint && (
