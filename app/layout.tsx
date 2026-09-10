@@ -7,7 +7,7 @@ import Footer from "../components/Footer";
 
 export const metadata: Metadata = {
   title: "Phoneme Activity Builder",
-  description: "Cloud Web Applications Assessment 1",
+  description: "Cloud Web Applications Assessment 2",
 };
 
 export default function RootLayout({

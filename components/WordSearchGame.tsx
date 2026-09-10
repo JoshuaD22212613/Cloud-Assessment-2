@@ -83,10 +83,7 @@ function buildGrid(words: GameWord[]) {
   );
 
   /*
-    Minimum 8x8 to preserve the Assessment 1 appearance.
-    The grid can grow if a word contains more than
-    eight phonemes or the list contains more than
-    eight words.
+  Minimum 8x8 to preserve the original activity appearance.
   */
   const gridSize = Math.max(
     8,
