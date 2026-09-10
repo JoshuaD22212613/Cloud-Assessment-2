@@ -1,6 +1,7 @@
 import ThemeControls from "../../components/ThemeControls";
 import WordListManager from "../../components/WordListManager";
 import WordManager from "../../components/WordManager";
+import ActivityManager from "../../components/ActivityManager";
 
 export default function SettingsPage() {
   return (
@@ -52,6 +53,20 @@ export default function SettingsPage() {
         </p>
 
         <WordManager />
+      </section>
+
+      <section className="info-card">
+        <h3>
+          Manage Activity Configurations
+        </h3>
+
+        <p>
+          View, edit and delete saved Wordle and Word
+          Search configurations stored in the
+          PostgreSQL database.
+        </p>
+
+        <ActivityManager />
       </section>
     </div>
   );
