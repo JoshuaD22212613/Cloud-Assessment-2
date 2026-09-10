@@ -26,7 +26,15 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 
-ENTRYPOINT ["/sbin/tini", "--"]
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 
 EXPOSE 3000
 
