@@ -125,15 +125,22 @@ export default function WordleBuilder() {
     words.find((word) => word.id === selectedWordId) ?? null;
 
   // Keep the target phoneme array stable between renders.
-  const targetPhonemes = useMemo(
-    () =>
-      selectedWord
-        ? selectedWord.phonemes.map(
-            (phoneme) => phoneme.symbol
+const targetPhonemes = useMemo(
+  () =>
+    selectedWord
+      ? selectedWord.phonemes
+          .slice()
+          .sort(
+            (a, b) =>
+              a.position - b.position
           )
-        : [],
-    [selectedWord]
-  );
+          .map(
+            (phoneme) =>
+              phoneme.symbol
+          )
+      : [],
+  [selectedWord]
+);
 
   function handleWordListChange(wordListId: number) {
     setSelectedWordListId(wordListId);

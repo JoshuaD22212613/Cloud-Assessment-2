@@ -367,10 +367,16 @@ export function generateWordleHtml({
 
   </main>
 
-  <script>
+    <script>
     const targetWord = ${JSON.stringify(targetWord)};
     const englishWord = ${JSON.stringify(englishWord)};
     const maxGuesses = ${maxGuesses};
+
+    function normalizePhoneme(value) {
+      return String(value ?? "").trim().normalize("NFC");
+    }
+
+    const normalizedTargetWord = targetWord.map(normalizePhoneme);
 
     const keyboardData = ${JSON.stringify(keyboard)};
 
@@ -399,7 +405,7 @@ export function generateWordleHtml({
 
         for (
           let column = 0;
-          column < targetWord.length;
+          column < normalizedTargetWord.length;
           column++
         ) {
           const tile =
@@ -480,7 +486,7 @@ export function generateWordleHtml({
 
       if (
         currentGuess.length <
-        targetWord.length
+        normalizedTargetWord.length
       ) {
         currentGuess.push(symbol);
         updateCurrentRow();
@@ -503,7 +509,7 @@ export function generateWordleHtml({
 
       for (
         let column = 0;
-        column < targetWord.length;
+        column < normalizedTargetWord.length;
         column++
       ) {
         const tile =
@@ -527,13 +533,17 @@ export function generateWordleHtml({
           return "incorrect";
         });
 
+      const normalizedGuess =
+        guess.map(normalizePhoneme);
+
       const remaining =
-        targetWord.slice();
+        normalizedTargetWord.slice();
 
       guess.forEach(
         function(symbol, index) {
           if (
-            symbol === targetWord[index]
+            normalizedGuess[index] ===
+            normalizedTargetWord[index]
           ) {
             statuses[index] = "correct";
             remaining[index] = "";
@@ -550,7 +560,9 @@ export function generateWordleHtml({
           }
 
           const foundIndex =
-            remaining.indexOf(symbol);
+            remaining.indexOf(
+              normalizedGuess[index]
+            );
 
           if (foundIndex !== -1) {
             statuses[index] = "present";
@@ -569,11 +581,11 @@ export function generateWordleHtml({
 
       if (
         currentGuess.length !==
-        targetWord.length
+        normalizedTargetWord.length
       ) {
         message.textContent =
           "Choose " +
-          targetWord.length +
+          normalizedTargetWord.length +
           " phonemes before submitting.";
 
         return;
@@ -607,8 +619,8 @@ export function generateWordleHtml({
         currentGuess.every(
           function(symbol, index) {
             return (
-              symbol ===
-              targetWord[index]
+              normalizePhoneme(symbol) ===
+              normalizedTargetWord[index]
             );
           }
         );
@@ -620,7 +632,7 @@ export function generateWordleHtml({
       if (correct) {
         message.textContent =
           "Correct! /" +
-          targetWord.join(" ") +
+          normalizedTargetWord.join(" ") +
           "/ = " +
           englishWord;
 
@@ -667,6 +679,6 @@ export function generateWordleHtml({
     createKeyboard();
   </script>
 
-</body>
+  </body>
 </html>`;
 }
